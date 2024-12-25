@@ -1,0 +1,15 @@
+#!/bin/bash
+rm -rf build 2> /dev/null
+mkdir build
+cd build
+cmake ..
+make
+cd ..
+
+# Check if .uf2 file exists and copy to project folder
+uf2_file=$(find build -name "*.uf2" | head -n 1)
+if [ -n "$uf2_file" ]; then
+    cp "$uf2_file" .
+else
+    echo "No .uf2 file found."
+fi

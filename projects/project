@@ -1,0 +1,205 @@
+#!/bin/bash
+
+create_project() {
+    local project_name=$1
+    local file_name=$2
+
+    mkdir "$project_name" || { echo "Failed to create project folder"; exit 1; }
+    cd "$project_name" || { echo "Failed to enter project folder"; exit 1; }
+
+    cat <<EOF > "$file_name.c"
+#include <stdio.h>
+#include "pico/stdlib.h"
+
+int main() {
+    stdio_init_all();
+
+
+
+    return 0;
+}
+EOF
+
+    echo "build" > .gitignore
+
+    echo > CMakeLists.txt "
+#Generated Cmake Pico project file
+
+cmake_minimum_required(VERSION 3.13)
+
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Initialise pico_sdk from installed location
+# (note this can come from environment, CMake cache etc)
+
+# == DO NOT EDIT THE FOLLOWING LINES for the Raspberry Pi Pico VS Code Extension to work ==
+if(WIN32)
+    set(USERHOME \$ENV{USERPROFILE})
+else()
+    set(USERHOME \$ENV{HOME})
+endif()
+set(sdkVersion 2.1.0)
+set(toolchainVersion 13_3_Rel1)
+set(picotoolVersion 2.1.0)
+set(picoVscode \${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
+if (EXISTS \${picoVscode})
+    include(\${picoVscode})
+endif()
+# ====================================================================================
+set(PICO_BOARD pico_w CACHE STRING \"Board type\")
+
+# Pull in Raspberry Pi Pico SDK (must be before project)
+include(pico_sdk_import.cmake)
+
+project($project_name C CXX ASM)
+
+# Initialise the Raspberry Pi Pico SDK
+pico_sdk_init()
+
+# Add executable. Default name is the project name, version 0.1
+
+add_executable($project_name $file_name.c)
+
+pico_set_program_name($project_name \"$project_name\")
+pico_set_program_version($project_name \"0.1\")
+
+# Modify the below lines to enable/disable output over UART/USB
+pico_enable_stdio_uart($project_name 0)
+pico_enable_stdio_usb($project_name 1)
+
+# Add the standard library to the build
+target_link_libraries($project_name
+        pico_stdlib
+        hardware_pwm)
+
+# Add the standard include files to the build
+target_include_directories($project_name PRIVATE
+  \${CMAKE_CURRENT_LIST_DIR}
+)
+
+# Add any user requested libraries
+target_link_libraries($project_name)
+
+pico_add_extra_outputs($project_name)
+"
+
+    cat <<'EOF' > pico_sdk_import.cmake
+# This is a copy of <PICO_SDK_PATH>/external/pico_sdk_import.cmake
+
+# This can be dropped into an external project to help locate this SDK
+# It should be include()ed prior to project()
+
+if (DEFINED ENV{PICO_SDK_PATH} AND (NOT PICO_SDK_PATH))
+    set(PICO_SDK_PATH $ENV{PICO_SDK_PATH})
+    message("Using PICO_SDK_PATH from environment ('${PICO_SDK_PATH}')")
+endif ()
+
+if (DEFINED ENV{PICO_SDK_FETCH_FROM_GIT} AND (NOT PICO_SDK_FETCH_FROM_GIT))
+    set(PICO_SDK_FETCH_FROM_GIT $ENV{PICO_SDK_FETCH_FROM_GIT})
+    message("Using PICO_SDK_FETCH_FROM_GIT from environment ('${PICO_SDK_FETCH_FROM_GIT}')")
+endif ()
+
+if (DEFINED ENV{PICO_SDK_FETCH_FROM_GIT_PATH} AND (NOT PICO_SDK_FETCH_FROM_GIT_PATH))
+    set(PICO_SDK_FETCH_FROM_GIT_PATH $ENV{PICO_SDK_FETCH_FROM_GIT_PATH})
+    message("Using PICO_SDK_FETCH_FROM_GIT_PATH from environment ('${PICO_SDK_FETCH_FROM_GIT_PATH}')")
+endif ()
+
+if (DEFINED ENV{PICO_SDK_FETCH_FROM_GIT_TAG} AND (NOT PICO_SDK_FETCH_FROM_GIT_TAG))
+    set(PICO_SDK_FETCH_FROM_GIT_TAG $ENV{PICO_SDK_FETCH_FROM_GIT_TAG})
+    message("Using PICO_SDK_FETCH_FROM_GIT_TAG from environment ('${PICO_SDK_FETCH_FROM_GIT_TAG}')")
+endif ()
+
+if (PICO_SDK_FETCH_FROM_GIT AND NOT PICO_SDK_FETCH_FROM_GIT_TAG)
+  set(PICO_SDK_FETCH_FROM_GIT_TAG "master")
+  message("Using master as default value for PICO_SDK_FETCH_FROM_GIT_TAG")
+endif()
+
+set(PICO_SDK_PATH "${PICO_SDK_PATH}" CACHE PATH "Path to the Raspberry Pi Pico SDK")
+set(PICO_SDK_FETCH_FROM_GIT "${PICO_SDK_FETCH_FROM_GIT}" CACHE BOOL "Set to ON to fetch copy of SDK from git if not otherwise locatable")
+set(PICO_SDK_FETCH_FROM_GIT_PATH "${PICO_SDK_FETCH_FROM_GIT_PATH}" CACHE FILEPATH "location to download SDK")
+set(PICO_SDK_FETCH_FROM_GIT_TAG "${PICO_SDK_FETCH_FROM_GIT_TAG}" CACHE FILEPATH "release tag for SDK")
+
+if (NOT PICO_SDK_PATH)
+    if (PICO_SDK_FETCH_FROM_GIT)
+        include(FetchContent)
+        set(FETCHCONTENT_BASE_DIR_SAVE ${FETCHCONTENT_BASE_DIR})
+        if (PICO_SDK_FETCH_FROM_GIT_PATH)
+            get_filename_component(FETCHCONTENT_BASE_DIR "${PICO_SDK_FETCH_FROM_GIT_PATH}" REALPATH BASE_DIR "${CMAKE_SOURCE_DIR}")
+        endif ()
+        # GIT_SUBMODULES_RECURSE was added in 3.17
+        if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.17.0")
+            FetchContent_Declare(
+                    pico_sdk
+                    GIT_REPOSITORY https://github.com/raspberrypi/pico-sdk
+                    GIT_TAG ${PICO_SDK_FETCH_FROM_GIT_TAG}
+                    GIT_SUBMODULES_RECURSE FALSE
+            )
+        else ()
+            FetchContent_Declare(
+                    pico_sdk
+                    GIT_REPOSITORY https://github.com/raspberrypi/pico-sdk
+                    GIT_TAG ${PICO_SDK_FETCH_FROM_GIT_TAG}
+            )
+        endif ()
+
+        if (NOT pico_sdk)
+            message("Downloading Raspberry Pi Pico SDK")
+            FetchContent_Populate(pico_sdk)
+            set(PICO_SDK_PATH ${pico_sdk_SOURCE_DIR})
+        endif ()
+        set(FETCHCONTENT_BASE_DIR ${FETCHCONTENT_BASE_DIR_SAVE})
+    else ()
+        message(FATAL_ERROR
+                "SDK location was not specified. Please set PICO_SDK_PATH or set PICO_SDK_FETCH_FROM_GIT to on to fetch from git."
+                )
+    endif ()
+endif ()
+
+get_filename_component(PICO_SDK_PATH "${PICO_SDK_PATH}" REALPATH BASE_DIR "${CMAKE_BINARY_DIR}")
+if (NOT EXISTS ${PICO_SDK_PATH})
+    message(FATAL_ERROR "Directory '${PICO_SDK_PATH}' not found")
+endif ()
+
+set(PICO_SDK_INIT_CMAKE_FILE ${PICO_SDK_PATH}/pico_sdk_init.cmake)
+if (NOT EXISTS ${PICO_SDK_INIT_CMAKE_FILE})
+    message(FATAL_ERROR "Directory '${PICO_SDK_PATH}' does not appear to contain the Raspberry Pi Pico SDK")
+endif ()
+
+set(PICO_SDK_PATH ${PICO_SDK_PATH} CACHE PATH "Path to the Raspberry Pi Pico SDK" FORCE)
+
+include(${PICO_SDK_INIT_CMAKE_FILE})
+EOF
+
+    cat <<'EOF' > build_project
+#!/bin/bash
+rm -rf build 2> /dev/null
+mkdir build
+cd build
+cmake ..
+make
+cd ..
+
+# Check if .uf2 file exists and copy to project folder
+uf2_file=$(find build -name "*.uf2" | head -n 1)
+if [ -n "$uf2_file" ]; then
+    cp "$uf2_file" .
+else
+    echo "No .uf2 file found."
+fi
+EOF
+
+    chmod +x build_project
+
+    echo "Project $project_name created successfully!"
+}
+
+if [ "$1" == "quick" ] && [ -n "$2" ]; then
+    project_name=$2
+    file_name=${project_name,,}
+    create_project "$project_name" "$file_name"
+else
+    echo "Usage: ./script quick <project-name>"
+    exit 1
+fi
