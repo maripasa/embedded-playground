@@ -15,22 +15,7 @@ enum Color {
 	GREEN,
 };
 
-void handle_color(enum Color color) {
-	switch (color) {
-		case RED:
-			gpio_put(LED_PIN_RED, 1);
-			gpio_put(LED_PIN_GREEN, 0);
-			break;
-		case YELLOW:
-			gpio_put(LED_PIN_RED, 1);
-			gpio_put(LED_PIN_GREEN, 1);
-			break;
-		case GREEN:
-			gpio_put(LED_PIN_RED, 0);
-			gpio_put(LED_PIN_GREEN, 1);
-			break;
-	}
-}
+void handle_color(enum Color color);
 
 int main() {
 	const uint BUTTON_PIN1 = 5;
@@ -102,4 +87,21 @@ int main() {
 	}
 
 	return 0;
+}
+
+void handle_color(enum Color color) {
+	switch (color) {
+		case RED:
+			gpio_put(LED_PIN_RED, 1);
+			gpio_put(LED_PIN_GREEN, 0);
+			break;
+		case YELLOW:
+			gpio_put(LED_PIN_RED, 1);
+			gpio_put(LED_PIN_GREEN, 1);
+			break;
+		case GREEN:
+			gpio_put(LED_PIN_RED, 0);
+			gpio_put(LED_PIN_GREEN, 1);
+			break;
+	}
 }
